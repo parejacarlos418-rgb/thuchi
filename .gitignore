@@ -1,0 +1,37 @@
+# Claude Code config
+.claude/
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+build/
+frontend/dist/
+
+# Compiled binaries
+*.exe
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Plans & docs (dev files)
+plans/
+how-it-works.md
+
+# Test/debug scripts
+scripts/
+test
+test/
+cmd/
+
+# Go
+vendor/
