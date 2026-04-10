@@ -1,4 +1,4 @@
-/** Parse video_path field which can be a JSON array or a single path string. */
+/** Parse video_path field which can be a JSON array or a single URL string. */
 export function parseVideoPaths(videoPath: string): string[] {
   if (!videoPath) return [];
   // Try JSON array first (new format)
@@ -8,12 +8,6 @@ export function parseVideoPaths(videoPath: string): string[] {
       if (Array.isArray(arr)) return arr.filter(Boolean);
     } catch {}
   }
-  // Legacy single path
+  // Single URL
   return [videoPath];
-}
-
-export function videoSrc(path: string): string {
-  if (!path) return '';
-  const normalized = path.replace(/\\/g, '/');
-  return `/localfile/${normalized}`;
 }

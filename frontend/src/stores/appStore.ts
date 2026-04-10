@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Task, DashboardStats, AppConfig, QueueStatus, BrowserStatus, BrowserInfo, Page } from '../types';
+import type { Task, DashboardStats, AppConfig, QueueStatus, Page } from '../types';
 
 interface AppState {
   // UI
@@ -12,8 +12,6 @@ interface AppState {
   stats: DashboardStats;
   config: AppConfig | null;
   queueStatus: QueueStatus;
-  browserStatus: BrowserStatus;
-  browserInfo: BrowserInfo | null;
   queueProgress: { step: string; detail: string } | null;
 
   // Actions
@@ -25,8 +23,6 @@ interface AppState {
   setConfig: (config: AppConfig) => void;
   setQueueStatus: (status: QueueStatus) => void;
   setQueueProgress: (progress: { step: string; detail: string } | null) => void;
-  setBrowserStatus: (status: BrowserStatus) => void;
-  setBrowserInfo: (info: BrowserInfo | null) => void;
   openPreview: (task: Task) => void;
   closePreview: () => void;
   addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
@@ -43,34 +39,29 @@ export const useAppStore = create<AppState>((set) => ({
   stats: { total: 0, pending: 0, generating: 0, completed: 0, failed: 0 },
   config: null,
   queueStatus: 'idle',
-  browserStatus: 'disconnected',
-  browserInfo: null,
   queueProgress: null,
 
   setPage: (page) => set({ activePage: page }),
-
   setTasks: (tasks) => set({ tasks }),
 
-  updateTask: (task) => set((state) => {
-    const idx = state.tasks.findIndex((t) => t.id === task.id);
-    if (idx >= 0) {
-      const tasks = [...state.tasks];
-      tasks[idx] = task;
-      return { tasks };
-    }
-    return { tasks: [task, ...state.tasks] };
-  }),
+  updateTask: (task) =>
+    set((state) => {
+      const idx = state.tasks.findIndex((t) => t.id === task.id);
+      if (idx >= 0) {
+        const tasks = [...state.tasks];
+        tasks[idx] = task;
+        return { tasks };
+      }
+      return { tasks: [task, ...state.tasks] };
+    }),
 
-  removeTask: (id) => set((state) => ({
-    tasks: state.tasks.filter((t) => t.id !== id),
-  })),
+  removeTask: (id) =>
+    set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) })),
 
   setStats: (stats) => set({ stats }),
   setConfig: (config) => set({ config }),
   setQueueStatus: (status) => set({ queueStatus: status }),
   setQueueProgress: (progress) => set({ queueProgress: progress }),
-  setBrowserStatus: (status) => set({ browserStatus: status }),
-  setBrowserInfo: (info) => set({ browserInfo: info }),
   openPreview: (task) => set({ previewTask: task }),
   closePreview: () => set({ previewTask: null }),
 
@@ -82,7 +73,6 @@ export const useAppStore = create<AppState>((set) => ({
     }, 4000);
   },
 
-  removeToast: (id) => set((state) => ({
-    toasts: state.toasts.filter((t) => t.id !== id),
-  })),
+  removeToast: (id) =>
+    set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 }));

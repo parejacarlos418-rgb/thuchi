@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Save, FolderOpen, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
-import { wailsApi } from '../lib/wailsApi';
+import * as storage from '../lib/taskStorage';
 import type { AppConfig } from '../types';
 
 interface Props {
@@ -19,22 +19,11 @@ export function GenerationSettings({ form, onFormChange }: Props) {
     setDirty(true);
   };
 
-  const saveSettings = async () => {
-    try {
-      await wailsApi.UpdateAppConfig(form);
-      setConfig(form);
-      setDirty(false);
-      addToast('Đã lưu cài đặt', 'success');
-    } catch (e: any) {
-      addToast('Lỗi lưu: ' + String(e), 'error');
-    }
-  };
-
-  const selectDir = async (key: keyof AppConfig) => {
-    try {
-      const dir = await wailsApi.SelectDirectory();
-      if (dir) updateField(key, dir);
-    } catch {}
+  const saveSettings = () => {
+    storage.saveConfig(form);
+    setConfig(form);
+    setDirty(false);
+    addToast('Đã lưu cài đặt', 'success');
   };
 
   return (
@@ -76,14 +65,6 @@ export function GenerationSettings({ form, onFormChange }: Props) {
                 <option value={3}>x3</option>
                 <option value={4}>x4</option>
               </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Thư mục tải xuống</label>
-            <div className="flex gap-1">
-              <input value={form.download_dir} onChange={(e) => updateField('download_dir', e.target.value)} className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
-              <button onClick={() => selectDir('download_dir')} className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded shrink-0"><FolderOpen size={14} /></button>
             </div>
           </div>
 

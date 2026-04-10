@@ -1,184 +1,152 @@
 import { useEffect, useState } from 'react';
-import { FolderOpen, Save, Chrome, Copy, RefreshCw } from 'lucide-react';
+import { Save, Key, Hash, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
-import { wailsApi } from '../lib/wailsApi';
-import { BROWSER_STATUS_LABELS } from '../lib/constants';
+import * as storage from '../lib/taskStorage';
 import type { AppConfig } from '../types';
 
 export function SettingsPage() {
-  const { config, setConfig, browserStatus, browserInfo, setBrowserInfo, addToast } = useAppStore();
+  const { setConfig, addToast } = useAppStore();
   const [form, setForm] = useState<AppConfig | null>(null);
-  const [detectedChrome, setDetectedChrome] = useState('');
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const c = await wailsApi.GetAppConfig();
-        if (c) { setConfig(c); setForm(c); }
-      } catch {}
-      refreshBrowserInfo();
-      wailsApi.DetectChromePath().then(setDetectedChrome).catch(() => {});
-    };
-    load();
+    setForm(storage.getConfig());
   }, []);
 
-  const refreshBrowserInfo = async () => {
-    try {
-      const info = await wailsApi.GetBrowserInfo();
-      if (info) setBrowserInfo(info);
-    } catch {}
-  };
-
-  useEffect(() => { refreshBrowserInfo(); }, [browserStatus]);
-
-  if (!form) return <p className="text-gray-500">Đang tải cài đặt...</p>;
+  if (!form) return <p className="text-gray-500">Đang tải...</p>;
 
   const updateField = (key: keyof AppConfig, value: any) => {
     setForm({ ...form, [key]: value });
   };
 
-  const save = async () => {
-    try {
-      await wailsApi.UpdateAppConfig(form);
-      setConfig(form);
-      addToast('Đã lưu cài đặt', 'success');
-    } catch (e: any) {
-      addToast('Lỗi lưu: ' + String(e), 'error');
-    }
+  const save = () => {
+    storage.saveConfig(form);
+    setConfig(form);
+    addToast('Đã lưu cài đặt', 'success');
   };
 
-  const selectDir = async (key: keyof AppConfig) => {
-    try {
-      const dir = await wailsApi.SelectDirectory();
-      if (dir) updateField(key, dir);
-    } catch {}
-  };
-
-  const launchBrowser = async () => {
-    try { await wailsApi.LaunchBrowser(); }
-    catch (e: any) { addToast('Lỗi khởi động: ' + String(e), 'error'); }
-  };
-
-  const closeBrowser = async () => {
-    try { await wailsApi.CloseBrowser(); }
-    catch (e: any) { addToast('Lỗi đóng trình duyệt: ' + String(e), 'error'); }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    addToast('Đã sao chép', 'info');
-  };
+  const hasToken = !!form.access_token;
+  const hasProject = !!form.project_id;
 
   return (
-    <div className="max-w-4xl mx-auto w-full">
-      <h2 className="text-xl font-semibold text-white mb-4">Cài đặt Chrome</h2>
+    <div className="max-w-3xl mx-auto w-full space-y-6">
+      <h2 className="text-xl font-semibold text-white">Cài đặt</h2>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
-        {/* Browser Section */}
-        <section>
-          <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2"><Chrome size={14} /> Trình duyệt</h3>
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 h-full">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Đường dẫn Chrome</label>
-              <input
-                value={form.chrome_path}
-                onChange={(e) => updateField('chrome_path', e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
-                placeholder="Tự phát hiện"
-              />
-              {detectedChrome && !form.chrome_path && (
-                <p className="text-xs text-green-500 mt-1">Đã phát hiện: {detectedChrome}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Thư mục dữ liệu người dùng</label>
-              <div className="flex gap-2">
-                <input value={form.user_data_dir} onChange={(e) => updateField('user_data_dir', e.target.value)} className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
-                <button onClick={() => selectDir('user_data_dir')} className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded"><FolderOpen size={14} /></button>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Cổng debug (Remote Debugging Port)</label>
-              <input type="number" value={form.debug_port} onChange={(e) => updateField('debug_port', parseInt(e.target.value) || 9222)} min={1024} max={65535} className="w-32 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-400">Trạng thái: <span className="font-medium">{BROWSER_STATUS_LABELS[browserStatus] || browserStatus}</span></span>
-              {browserStatus === 'disconnected' ? (
-                <button onClick={launchBrowser} className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-sm">Khởi động</button>
-              ) : browserStatus === 'connected' ? (
-                <button onClick={closeBrowser} className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-sm">Đóng</button>
-              ) : null}
-            </div>
-            <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-              <input type="checkbox" checked={form.show_browser} onChange={(e) => updateField('show_browser', e.target.checked)} className="rounded" />
-              Hiển thị cửa sổ trình duyệt (chế độ headed)
-            </label>
-          </div>
-        </section>
-
-        {/* Chrome Debug Info Panel */}
-        <section>
-          <h3 className="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
-            <Chrome size={14} /> Thông tin kết nối Debug
-            <button onClick={refreshBrowserInfo} className="ml-auto text-gray-500 hover:text-gray-300" title="Làm mới">
-              <RefreshCw size={14} />
-            </button>
-          </h3>
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 h-full">
-            {browserInfo && browserInfo.status === 'connected' ? (
-              <>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">CDP WebSocket URL (cho AI kết nối)</label>
-                  <div className="flex gap-2">
-                    <code className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-green-400 font-mono break-all">
-                      {browserInfo.control_url || `ws://127.0.0.1:${browserInfo.debug_port}`}
-                    </code>
-                    <button onClick={() => copyToClipboard(browserInfo.control_url || `ws://127.0.0.1:${browserInfo.debug_port}`)} className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded shrink-0" title="Sao chép">
-                      <Copy size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">Cổng debug</label>
-                    <div className="flex gap-2">
-                      <code className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-cyan-400 font-mono">{browserInfo.debug_port}</code>
-                      <button onClick={() => copyToClipboard(String(browserInfo.debug_port))} className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded shrink-0" title="Sao chép"><Copy size={14} /></button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">DevTools URL</label>
-                    <div className="flex gap-2">
-                      <code className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-cyan-400 font-mono">http://127.0.0.1:{browserInfo.debug_port}</code>
-                      <button onClick={() => copyToClipboard(`http://127.0.0.1:${browserInfo.debug_port}`)} className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded shrink-0" title="Sao chép"><Copy size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Thư mục profile</label>
-                  <code className="block bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-gray-400 font-mono break-all">{browserInfo.profile_dir}</code>
-                </div>
-                {browserInfo.chrome_path && (
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">Đường dẫn Chrome</label>
-                    <code className="block bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-gray-400 font-mono break-all">{browserInfo.chrome_path}</code>
-                  </div>
-                )}
-                <div className="p-2 bg-blue-900/20 border border-blue-800/30 rounded text-xs text-blue-400">
-                  AI có thể kết nối vào trình duyệt này bằng CDP URL ở trên để đọc elements, debug automation, và lấy CSS selectors.
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-32">
-                <p className="text-sm text-gray-600 text-center">Trình duyệt chưa kết nối.<br />Khởi động trình duyệt để xem thông tin debug.</p>
-              </div>
-            )}
-          </div>
-        </section>
+      {/* Status */}
+      <div className={`flex items-center gap-3 p-4 rounded-lg border ${
+        hasToken && hasProject
+          ? 'bg-green-950/30 border-green-800/50 text-green-300'
+          : 'bg-yellow-950/30 border-yellow-800/50 text-yellow-300'
+      }`}>
+        {hasToken && hasProject ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+        <span className="text-sm">
+          {hasToken && hasProject
+            ? 'Đã cấu hình xong. Sẵn sàng tạo video!'
+            : `Cần cấu hình: ${!hasToken ? 'Access Token' : ''}${!hasToken && !hasProject ? ' và ' : ''}${!hasProject ? 'Project ID' : ''}`}
+        </span>
       </div>
 
-      <button onClick={save} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm">
-        <Save size={14} /> Lưu cài đặt
+      {/* Token Section */}
+      <section className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+        <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+          <Key size={14} /> Access Token (Google)
+        </h3>
+
+        <div>
+          <textarea
+            value={form.access_token}
+            onChange={(e) => updateField('access_token', e.target.value.trim())}
+            placeholder="Dán access_token ở đây..."
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono resize-none focus:outline-none focus:border-blue-500"
+            rows={3}
+          />
+        </div>
+
+        <div className="p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg text-xs text-blue-300 space-y-2">
+          <p className="font-semibold">Cách lấy Access Token:</p>
+          <ol className="list-decimal list-inside space-y-1 text-blue-400">
+            <li>Mở <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener" className="underline hover:text-blue-300">labs.google/fx/tools/flow</a> và đăng nhập Google</li>
+            <li>Nhấn <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">F12</kbd> mở DevTools &rarr; tab <strong>Console</strong></li>
+            <li>Paste lệnh này và nhấn Enter:</li>
+          </ol>
+          <code className="block bg-gray-800 px-3 py-2 rounded text-green-400 text-xs break-all select-all">
+            copy(__NEXT_DATA__.props.pageProps.session.access_token)
+          </code>
+          <p className="text-gray-500">Token sẽ được copy vào clipboard. Dán vào ô trên.</p>
+          <p className="text-yellow-400">&#9888; Token hết hạn sau ~1 giờ. Lấy lại khi hết hạn.</p>
+        </div>
+      </section>
+
+      {/* Project ID Section */}
+      <section className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+        <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+          <Hash size={14} /> Project ID
+        </h3>
+
+        <input
+          value={form.project_id}
+          onChange={(e) => updateField('project_id', e.target.value.trim())}
+          placeholder="Dán project ID ở đây..."
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500"
+        />
+
+        <div className="p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg text-xs text-blue-300 space-y-2">
+          <p className="font-semibold">Cách lấy Project ID:</p>
+          <ol className="list-decimal list-inside space-y-1 text-blue-400">
+            <li>Mở <a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener" className="underline hover:text-blue-300">labs.google/fx/tools/flow</a></li>
+            <li>Tạo hoặc mở một project</li>
+            <li>Nhìn URL trên trình duyệt, ví dụ: <code className="bg-gray-700 px-1 rounded">.../flow/project/<strong>ABC123xyz...</strong></code></li>
+            <li>Copy phần ID sau <code className="bg-gray-700 px-1 rounded">/project/</code></li>
+          </ol>
+        </div>
+      </section>
+
+      {/* Generation Settings */}
+      <section className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+        <h3 className="text-sm font-medium text-gray-300">Cài đặt tạo video</h3>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Model</label>
+            <select value={form.model} onChange={(e) => updateField('model', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+              <option value="veo_3_1_fast">Veo 3.1 Fast (Ultra)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Tỷ lệ</label>
+            <select value={form.aspect_ratio} onChange={(e) => updateField('aspect_ratio', e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+              <option value="16:9">16:9 Landscape</option>
+              <option value="9:16">9:16 Portrait</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Số output</label>
+            <select value={form.output_count} onChange={(e) => updateField('output_count', parseInt(e.target.value))} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+              <option value={1}>x1</option>
+              <option value={2}>x2</option>
+              <option value={3}>x3</option>
+              <option value={4}>x4</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Thử lại tối đa</label>
+            <input type="number" value={form.max_retries} onChange={(e) => updateField('max_retries', parseInt(e.target.value) || 1)} min={0} max={10} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Delay tối thiểu (s)</label>
+            <input type="number" value={form.min_delay_seconds} onChange={(e) => updateField('min_delay_seconds', parseInt(e.target.value) || 5)} min={1} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Delay tối đa (s)</label>
+            <input type="number" value={form.max_delay_seconds} onChange={(e) => updateField('max_delay_seconds', parseInt(e.target.value) || 15)} min={3} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500" />
+          </div>
+        </div>
+      </section>
+
+      <button onClick={save} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
+        <Save size={14} /> Lưu tất cả cài đặt
       </button>
     </div>
   );

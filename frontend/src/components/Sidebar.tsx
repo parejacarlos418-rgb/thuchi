@@ -1,7 +1,6 @@
-import { LayoutDashboard, ListTodo, History, Settings, Chrome } from 'lucide-react';
+import { LayoutDashboard, ListTodo, History, Settings } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
-import { BROWSER_STATUS_LABELS } from '../lib/constants';
-import type { Page, BrowserStatus } from '../types';
+import type { Page } from '../types';
 
 const navItems: { page: Page; label: string; icon: typeof LayoutDashboard }[] = [
   { page: 'dashboard', label: 'Trang chủ', icon: LayoutDashboard },
@@ -10,18 +9,11 @@ const navItems: { page: Page; label: string; icon: typeof LayoutDashboard }[] = 
   { page: 'settings', label: 'Cài đặt', icon: Settings },
 ];
 
-const statusColors: Record<BrowserStatus, string> = {
-  connected: 'bg-green-500',
-  launching: 'bg-yellow-500 animate-pulse',
-  disconnected: 'bg-gray-500',
-  error: 'bg-red-500',
-};
-
 export function Sidebar() {
-  const { activePage, setPage, browserStatus } = useAppStore();
+  const { activePage, setPage, queueStatus } = useAppStore();
 
   return (
-    <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col h-full">
+    <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col h-full shrink-0">
       <div className="p-4 border-b border-gray-800">
         <h1 className="text-lg font-bold text-white">Veo3 Manager</h1>
         <p className="text-xs text-gray-500">Quản lý tạo video AI</p>
@@ -46,10 +38,11 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-gray-800">
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Chrome size={14} />
-          <span>Trình duyệt</span>
-          <span className={`ml-auto w-2 h-2 rounded-full ${statusColors[browserStatus]}`} />
-          <span>{BROWSER_STATUS_LABELS[browserStatus]}</span>
+          <span className={`w-2 h-2 rounded-full ${
+            queueStatus === 'running' ? 'bg-green-500 animate-pulse' :
+            queueStatus === 'paused' ? 'bg-yellow-500' : 'bg-gray-600'
+          }`} />
+          <span>Queue: {queueStatus === 'running' ? 'Đang chạy' : queueStatus === 'paused' ? 'Tạm dừng' : 'Chờ'}</span>
         </div>
       </div>
     </aside>

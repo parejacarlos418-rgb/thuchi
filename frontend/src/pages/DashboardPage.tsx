@@ -2,21 +2,15 @@ import { useEffect } from 'react';
 import { Film, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { StatusBadge } from '../components/StatusBadge';
-import { wailsApi } from '../lib/wailsApi';
+import * as storage from '../lib/taskStorage';
 import type { Task } from '../types';
 
 export function DashboardPage() {
   const { stats, tasks, setStats, setTasks, openPreview } = useAppStore();
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [s, t] = await Promise.all([wailsApi.GetDashboardStats(), wailsApi.GetAllTasks()]);
-        if (s) setStats(s);
-        if (t) setTasks(t);
-      } catch {}
-    };
-    load();
+    setTasks(storage.getAllTasks());
+    setStats(storage.getStats());
   }, []);
 
   const recentTasks = tasks.slice(0, 10);
@@ -33,7 +27,6 @@ export function DashboardPage() {
     <div>
       <h2 className="text-xl font-semibold text-white mb-4">Trang chủ</h2>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {cards.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
@@ -46,7 +39,6 @@ export function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity */}
       <h3 className="text-sm font-medium text-gray-400 mb-2">Hoạt động gần đây</h3>
       <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800">
         {recentTasks.length === 0 ? (
@@ -56,7 +48,7 @@ export function DashboardPage() {
             <div
               key={task.id}
               className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-800/50 cursor-pointer transition-colors"
-              onClick={() => task.status === 'completed' || task.status === 'failed' ? openPreview(task) : null}
+              onClick={() => (task.status === 'completed' || task.status === 'failed') && openPreview(task)}
             >
               <span className="text-sm text-gray-300 truncate max-w-[60%]">{task.prompt}</span>
               <div className="flex items-center gap-3">

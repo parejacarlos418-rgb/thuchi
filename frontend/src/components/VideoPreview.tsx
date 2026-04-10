@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { X, Copy, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Copy, RotateCcw, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { StatusBadge } from './StatusBadge';
-import { parseVideoPaths, videoSrc } from '../lib/videoPaths';
-import { wailsApi } from '../lib/wailsApi';
+import { parseVideoPaths } from '../lib/videoPaths';
+import * as storage from '../lib/taskStorage';
 
 export function VideoPreview() {
-  const { previewTask, closePreview, addToast } = useAppStore();
+  const { previewTask, closePreview, setTasks, addToast } = useAppStore();
   const [currentIdx, setCurrentIdx] = useState(0);
 
   if (!previewTask) return null;
@@ -21,14 +21,15 @@ export function VideoPreview() {
     addToast('Đã sao chép prompt', 'info');
   };
 
-  const requeue = async () => {
-    try {
-      await wailsApi.RequeueTask(previewTask.id);
-      addToast('Đã thêm lại vào hàng đợi', 'info');
-      closePreview();
-    } catch (e: any) {
-      addToast('Lỗi khi thêm lại: ' + String(e), 'error');
-    }
+  const requeue = () => {
+    storage.requeueTask(previewTask.id);
+    setTasks(storage.getAllTasks());
+    addToast('Đã thêm lại vào hàng đợi', 'info');
+    closePreview();
+  };
+
+  const openVideo = (url: string) => {
+    window.open(url, '_blank');
   };
 
   const formatDate = (d: string) => d ? new Date(d).toLocaleString() : '-';
@@ -59,7 +60,7 @@ export function VideoPreview() {
                   controls
                   autoPlay
                   className="w-full max-h-[400px] object-contain"
-                  src={videoSrc(paths[safeIdx])}
+                  src={paths[safeIdx]}
                 >
                   Trình duyệt không hỗ trợ phát video.
                 </video>
@@ -84,7 +85,7 @@ export function VideoPreview() {
           {/* Video thumbnails for multi-video */}
           {hasMultiple && (
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {paths.map((p, i) => (
+              {paths.map((_p, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentIdx(i)}
@@ -130,12 +131,6 @@ export function VideoPreview() {
                 <p className="text-red-300 text-xs">{previewTask.error_message}</p>
               </div>
             )}
-            {hasPaths && (
-              <div>
-                <label className="text-gray-500 text-xs block mb-1">Đường dẫn file ({paths.length} video)</label>
-                <p className="text-gray-500 text-xs break-all font-mono">{paths[safeIdx]}</p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -144,6 +139,11 @@ export function VideoPreview() {
           <button onClick={copyPrompt} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm transition-colors">
             <Copy size={14} /> Sao chép Prompt
           </button>
+          {hasPaths && (
+            <button onClick={() => openVideo(paths[safeIdx])} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm transition-colors">
+              <Download size={14} /> Mở video
+            </button>
+          )}
           {previewTask.status === 'failed' && (
             <button onClick={requeue} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm transition-colors">
               <RotateCcw size={14} /> Thêm lại hàng đợi
